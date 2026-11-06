@@ -1,0 +1,26 @@
+@import url('https://fonts.googleapis.com/css2?family=Inter:wght@400;500;600&display=swap');
+@import 'tailwindcss';
+
+@theme {
+  --font-sans: 'Inter', ui-sans-serif, system-ui, sans-serif;
+
+  --color-accent-50: #effbf9;
+  --color-accent-100: #d6f3ef;
+  --color-accent-500: #14a394;
+  --color-accent-600: #0f8a7e;
+  --color-accent-700: #0d6f66;
+}
+
+html,
+body,
+#root {
+  height: 100%;
+}
+
+body {
+  @apply bg-stone-50 text-stone-900 antialiased;
+}
+
+:focus-visible {
+  @apply outline-2 outline-offset-2 outline-accent-500;
+}
