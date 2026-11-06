@@ -75,7 +75,7 @@ export function useCreateConsultation() {
 export function useSaveConsultation(id: string) {
   const qc = useQueryClient()
   return useMutation({
-    mutationFn: async (values: ReportValues) => {
+    mutationFn: async (values: ReportValues & { ai_drafted?: boolean }) => {
       const payload = Object.fromEntries(
         Object.entries(values).map(([k, v]) => [k, v === '' ? null : v]),
       )

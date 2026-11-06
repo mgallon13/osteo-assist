@@ -8,12 +8,18 @@
     "build": "tsc -b && vite build",
     "lint": "oxlint",
     "preview": "vite preview",
-    "test:db": "node tests/db/rls.test.mjs"
+    "test:db": "node tests/db/rls.test.mjs",
+    "test": "vitest run"
   },
   "dependencies": {
+    "@ai-sdk/gateway": "^4.0.136",
+    "@ai-sdk/gladia": "^3.0.75",
+    "@ai-sdk/mistral": "^4.0.80",
+    "@ai-sdk/openai": "^4.0.109",
     "@hookform/resolvers": "^7.0.3",
     "@supabase/supabase-js": "^2.119.0",
     "@tanstack/react-query": "^5.106.1",
+    "ai": "^7.0.163",
     "clsx": "^2.1.1",
     "lucide-react": "^1.70.0",
     "react": "^19.3.1",
@@ -34,6 +40,7 @@
     "oxlint": "^1.90.0",
     "tailwindcss": "^4.3.4",
     "typescript": "~7.0.2",
-    "vite": "^8.3.6"
+    "vite": "^8.3.6",
+    "vitest": "^5.1.0"
   }
 }

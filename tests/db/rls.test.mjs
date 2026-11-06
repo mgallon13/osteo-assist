@@ -160,5 +160,70 @@ await test('Un utilisateur connecté ne peut pas écrire dans la bibliothèque s
     `insert into scientific_articles (title) values ('Article injecté')`)),
   /row-level security/, 'écriture bibliothèque'))
 
+console.log('\nTests séance assistée')
+
+const consult2 = await as(USER_A, async (tx) => {
+  const pr = (await tx.query(`select app.current_practitioner_id($1) as id`, [orgA])).rows[0].id
+  return (await tx.query(
+    `insert into consultations (organization_id, patient_id, practitioner_id) values ($1, $2, $3) returning id`,
+    [orgA, patientA, pr])).rows[0].id
+})
+
+await test('Un enregistrement exige le consentement confirmé par le praticien lui-même', async () => {
+  await expectError(as(USER_A, (tx) => tx.query(
+    `insert into consultation_recordings (organization_id, consultation_id, storage_path, mime_type, consent_confirmed_at, consent_confirmed_by)
+     values ($1, $2, $3, 'audio/webm', now(), $4)`,
+    [orgA, consult2, `${orgA}/${consult2}/a.webm`, USER_B])), /row-level security/, 'consentement par un tiers')
+  await expectError(as(USER_A, (tx) => tx.query(
+    `insert into consultation_recordings (organization_id, consultation_id, storage_path, mime_type, consent_confirmed_by)
+     values ($1, $2, $3, 'audio/webm', $4)`,
+    [orgA, consult2, `${orgA}/${consult2}/b.webm`, USER_A])), /null value/, 'consentement absent')
+  await as(USER_A, (tx) => tx.query(
+    `insert into consultation_recordings (organization_id, consultation_id, storage_path, mime_type, consent_confirmed_at, consent_confirmed_by)
+     values ($1, $2, $3, 'audio/webm', now(), $4)`,
+    [orgA, consult2, `${orgA}/${consult2}/c.webm`, USER_A]))
+})
+
+await test('Le chemin de stockage doit être rangé sous le cabinet et la consultation', () =>
+  expectError(as(USER_A, (tx) => tx.query(
+    `insert into consultation_recordings (organization_id, consultation_id, storage_path, mime_type, consent_confirmed_at, consent_confirmed_by)
+     values ($1, $2, $3, 'audio/webm', now(), $4)`,
+    [orgA, consult2, `${orgB}/${consult2}/x.webm`, USER_A])), /recording_path_scoped/, 'chemin hors cabinet'))
+
+await test('B ne peut pas ajouter de transcription à une consultation de A', () =>
+  expectError(as(USER_B, (tx) => tx.query(
+    `insert into consultation_transcripts (organization_id, consultation_id, raw_text, model) values ($1, $2, 'x', 'm')`,
+    [orgA, consult2])), /row-level security/, 'transcription cross-tenant'))
+
+await test('La secrétaire ne voit ni enregistrements ni transcriptions', async () => {
+  await as(USER_A, (tx) => tx.query(
+    `insert into consultation_transcripts (organization_id, consultation_id, raw_text, model) values ($1, $2, 'Bonjour…', 'test')`,
+    [orgA, consult2]))
+  await as(STAFF_A, async (tx) => {
+    assert.equal((await tx.query(`select * from consultation_transcripts`)).rows.length, 0)
+    assert.equal((await tx.query(`select * from consultation_recordings`)).rows.length, 0)
+  })
+})
+
+await test('À la validation, la version finale est rangée à côté du brouillon IA', async () => {
+  await as(USER_A, async (tx) => {
+    const pr = (await tx.query(`select app.current_practitioner_id($1) as id`, [orgA])).rows[0].id
+    await tx.query(
+      `insert into ai_draft_feedback (organization_id, practitioner_id, consultation_id, ai_draft, model)
+       values ($1, $2, $3, '{"reason":"Lombalgie"}', 'test')`, [orgA, pr, consult2])
+    await tx.query(`update consultations set reason = 'Lombalgie basse' where id = $1`, [consult2])
+    await tx.query(`select public.validate_consultation($1)`, [consult2])
+    const f = (await tx.query(`select final_version from ai_draft_feedback where consultation_id = $1`, [consult2])).rows[0]
+    assert.equal(f.final_version.reason, 'Lombalgie basse')
+  })
+})
+
+await test('Usage IA : lisible par le propriétaire, pas par la secrétaire', async () => {
+  await as(STAFF_A, (tx) => tx.query(
+    `insert into ai_usage (organization_id, user_id, feature, model) values ($1, $2, 'transcription', 'm')`, [orgA, STAFF_A]))
+  await as(STAFF_A, async (tx) => assert.equal((await tx.query(`select * from ai_usage`)).rows.length, 0))
+  await as(USER_A, async (tx) => assert.equal((await tx.query(`select * from ai_usage`)).rows.length, 1))
+})
+
 console.log(`\n${passed} tests réussis`)
 await db.close()

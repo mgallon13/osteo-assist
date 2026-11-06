@@ -64,15 +64,15 @@ create trigger scientific_articles_updated_at
   before update on public.scientific_articles
   for each row execute function app.set_updated_at();
 
--- Dimension 1536 : à ajuster selon le modèle d'embedding retenu (hébergé dans
--- le périmètre HDS). Changer de dimension implique une migration + réindexation.
+-- Dimension 1024 = mistral-embed (modèle par défaut, cf. server/config.ts). Changer de modèle
+-- de dimension différente implique une migration + réindexation.
 create table public.scientific_article_chunks (
   id            uuid primary key default gen_random_uuid(),
   article_id    uuid not null references public.scientific_articles(id) on delete cascade,
   content       text not null,
   section       text,            -- 'abstract', 'methods', 'results'...
   chunk_index   int not null,
-  embedding     vector(1536),
+  embedding     vector(1024),
   token_count   int,
   created_at    timestamptz not null default now(),
   unique (article_id, chunk_index)

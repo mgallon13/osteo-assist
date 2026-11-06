@@ -1,12 +1,26 @@
 import { useEffect, useState } from 'react'
 import { Link, useParams } from 'react-router'
 import { useForm } from 'react-hook-form'
-import { ArrowLeft, CheckCircle2, History, Save } from 'lucide-react'
+import { ArrowLeft, CheckCircle2, History, Save, Sparkles } from 'lucide-react'
 import { Badge, Button, Card, CardHeader, ErrorMessage, Field, Input, PageHeader, Spinner, Textarea } from '@/components/ui'
 import { formatDate, formatDateTime } from '@/lib/utils'
 import { useAuth, useWorkspace } from '@/features/auth/AuthProvider'
 import { usePatient } from '@/features/patients/api'
 import { RedFlagChecklist } from '@/features/red-flags/RedFlagChecklist'
+import { SessionPanel } from '@/features/session/SessionPanel'
+import { reportKeys, type ConsultationReport, type ReportSource } from '../../../shared/ai-schemas'
+
+const sourceLabels: Record<ReportSource, string> = {
+  transcript: 'transcription',
+  notes: 'notes',
+  history: 'historique',
+}
+
+function addDays(days: number): string {
+  const d = new Date()
+  d.setDate(d.getDate() + days)
+  return d.toISOString().slice(0, 10)
+}
 import {
   originLabels, reportFields, useConsultation, usePatientConsultations, useSaveConsultation,
   useValidateConsultation, type ReportValues,
@@ -23,8 +37,19 @@ export function ConsultationPage() {
   const save = useSaveConsultation(consultationId)
   const validate = useValidateConsultation(consultationId)
   const [confirming, setConfirming] = useState(false)
+  const [aiDraft, setAiDraft] = useState<ConsultationReport | null>(null)
 
-  const { register, handleSubmit, reset, formState } = useForm<ReportValues>()
+  const { register, handleSubmit, reset, setValue, formState } = useForm<ReportValues>()
+
+  const applyDraft = (report: ConsultationReport) => {
+    for (const key of reportKeys) {
+      setValue(key, report.sections[key].content ?? '', { shouldDirty: true })
+    }
+    if (report.suggested_follow_up_days) {
+      setValue('suggested_follow_up_date', addDays(report.suggested_follow_up_days), { shouldDirty: true })
+    }
+    setAiDraft(report)
+  }
 
   useEffect(() => {
     const c = consultation.data
@@ -43,12 +68,12 @@ export function ConsultationPage() {
   const previous = (history.data ?? []).filter((h) => h.id !== c.id && h.consultation_date < c.consultation_date).slice(0, 3)
 
   const onSave = handleSubmit(async (values) => {
-    await save.mutateAsync(values)
+    await save.mutateAsync({ ...values, ...(aiDraft ? { ai_drafted: true } : {}) })
     reset(values)
   })
 
   const onValidate = handleSubmit(async (values) => {
-    if (formState.isDirty) await save.mutateAsync(values)
+    if (formState.isDirty) await save.mutateAsync({ ...values, ...(aiDraft ? { ai_drafted: true } : {}) })
     await validate.mutateAsync()
     setConfirming(false)
   })
@@ -78,19 +103,54 @@ export function ConsultationPage() {
       )}
 
       <div className="grid gap-5 lg:grid-cols-3">
-        <form onSubmit={onSave} className="space-y-5 lg:col-span-2" noValidate>
+        <div className="space-y-5 lg:col-span-2">
+        {isAuthor && !isValidated && (
+          <SessionPanel
+            consultationId={c.id}
+            organizationId={organizationId}
+            userId={session?.user.id ?? ''}
+            initialQuickNotes={c.quick_notes}
+            onDraft={applyDraft}
+          />
+        )}
+        <form onSubmit={onSave} className="space-y-5" noValidate>
           <Card>
             <CardHeader title="Compte rendu" description="Chaque section indique l'origine de l'information." />
+            {aiDraft && (
+              <div className="mx-5 mt-5 rounded-md border border-accent-100 bg-accent-50 px-4 py-3 text-sm text-stone-700">
+                <p className="flex items-center gap-2 font-medium text-accent-700">
+                  <Sparkles className="size-4" /> Brouillon généré par l’IA — relisez chaque section avant de valider.
+                </p>
+                {aiDraft.to_verify.length > 0 && (
+                  <>
+                    <p className="mt-2 font-medium text-stone-800">À vérifier :</p>
+                    <ul className="mt-1 list-disc space-y-0.5 pl-5">
+                      {aiDraft.to_verify.map((v, i) => <li key={i}>{v}</li>)}
+                    </ul>
+                  </>
+                )}
+              </div>
+            )}
             <fieldset disabled={!isAuthor} className="space-y-5 p-5">
-              {reportFields.map((f) => (
+              {reportFields.map((f) => {
+                const section = aiDraft?.sections[f.key]
+                return (
                 <div key={f.key}>
                   <div className="mb-1.5 flex items-center justify-between gap-2">
                     <label htmlFor={f.key} className="text-sm font-medium text-stone-700">{f.label}</label>
-                    <span className="text-xs text-stone-400">{originLabels[f.origin]}</span>
+                    <span className="flex items-center gap-2 text-xs text-stone-400">
+                      {section?.content && (
+                        <Badge tone="accent" title="Proposé par l’IA">
+                          IA · {section.sources.map((s) => sourceLabels[s]).join(', ')}
+                        </Badge>
+                      )}
+                      {originLabels[f.origin]}
+                    </span>
                   </div>
                   <Textarea id={f.key} rows={f.key === 'reason' ? 2 : 3} {...register(f.key)} />
                 </div>
-              ))}
+                )
+              })}
               <div className="max-w-xs">
                 <Field label="Date de suivi envisagée" htmlFor="suggested_follow_up_date" hint="Décidée par vous. Aucun envoi automatique.">
                   <Input id="suggested_follow_up_date" type="date" {...register('suggested_follow_up_date')} />
@@ -121,6 +181,7 @@ export function ConsultationPage() {
             </div>
           )}
         </form>
+        </div>
 
         <div className="space-y-5">
           <RedFlagChecklist

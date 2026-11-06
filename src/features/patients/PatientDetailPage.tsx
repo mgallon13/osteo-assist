@@ -5,6 +5,7 @@ import { ageFrom, formatDate, formatDateTime } from '@/lib/utils'
 import { useWorkspace } from '@/features/auth/AuthProvider'
 import { useCreateConsultation, usePatientConsultations } from '@/features/consultations/api'
 import { usePatient, usePatientClinical } from './api'
+import { PatientBriefCard } from '@/features/session/PatientBriefCard'
 
 function InfoRow({ label, value }: { label: string; value: string | null | undefined }) {
   return (
@@ -88,7 +89,10 @@ export function PatientDetailPage() {
           )}
         </div>
 
-        <div className="lg:col-span-3">
+        <div className="space-y-5 lg:col-span-3">
+          {canAccessClinical && consultations.data?.some((c) => c.status === 'validated') && (
+            <PatientBriefCard patientId={patientId} />
+          )}
           {canAccessClinical ? (
             <Card>
               <CardHeader title="Consultations" description="Historique chronologique" />

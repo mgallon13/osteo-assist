@@ -7,15 +7,18 @@ Assistant de documentation pour ostéopathes : dossiers patients, comptes rendus
 ## Stack
 
 - **Frontend** : React 19, TypeScript strict, Vite, Tailwind CSS 4, TanStack Query, React Router, React Hook Form + Zod, Lucide
-- **Backend** : PostgreSQL (Supabase en développement), Row Level Security, pgvector
+- **Backend** : PostgreSQL (Supabase en développement), Row Level Security, pgvector, Supabase Storage
+- **IA** : Vercel AI SDK 7 + Vercel AI Gateway (une clé, modèles interchangeables par variables d'environnement), fonctions Vercel dans `api/`
 
 ## Démarrage
 
 ```bash
 npm install
-cp .env.example .env.local   # renseigner l'URL et la clé anon du projet Supabase
-npm run dev
+cp .env.example .env.local   # Supabase + AI_GATEWAY_API_KEY
+npm run dev                  # interface + fonctions /api (exécutées par Vite en local)
 ```
+
+En production, Vercel déploie `api/**` comme fonctions serverless sans configuration supplémentaire.
 
 ### Base de données
 
@@ -27,6 +30,7 @@ npm run dev
 
 ```bash
 npm run test:db    # isolation multi-tenant, rôles, validation, traçabilité (PostgreSQL embarqué)
+npm test           # fonctions IA avec modèles simulés : pseudonymisation, droits, cache, erreurs
 npm run build      # vérification des types + build
 ```
 
@@ -43,7 +47,11 @@ src/
     consultations/      compte rendu structuré, validation
     red-flags/          checklist de référence
     method-profile/     interview « Ma méthode » (questions versionnées)
+    session/            enregistrement, transcription, brouillon IA, synthèse avant séance
   lib/  types/
+server/                 logique serveur : auth (jeton utilisateur + RLS), prompts, fonctions IA
+api/ai/                 fonctions Vercel : transcribe, consultation-report, patient-brief
+shared/                 schémas Zod partagés (sorties structurées du modèle)
 supabase/
   migrations/           schéma, RLS
   seed.sql              checklist drapeaux rouges (à valider cliniquement)
@@ -59,10 +67,19 @@ docs/                   usage prévu, décisions
 - **Profil de méthode privé** : visible uniquement par le praticien concerné, même au sein du cabinet.
 - **Bibliothèque scientifique** : lecture pour tous les utilisateurs connectés, écriture réservée au service d'ingestion.
 
+## Séance assistée par l'IA
+
+1. **Consentement** du patient coché par le praticien (tracé : qui, quand), puis enregistrement dans le navigateur (pause, reprise) ou import d'une dictée.
+2. **Transcription** (Voxtral par défaut). L'audio est **supprimé dès la transcription réussie** (`RECORDING_RETENTION`).
+3. **Compte rendu** rédigé à partir de la transcription, des notes rapides et des 3 dernières séances validées, dans le vocabulaire du profil « Ma méthode ». Chaque section indique sa source ; les passages ambigus sont listés « à vérifier ». Rien n'est enregistré sans action du praticien.
+4. **Synthèse avant séance** sur la fiche patient, mise en cache et régénérée seulement si les séances changent.
+5. L'écart entre brouillon IA et version validée est conservé (`ai_draft_feedback`) pour affiner le style.
+
+Garde-fous : les endpoints agissent avec le jeton de l'utilisateur (aucune clé service_role), **aucun nom ni coordonnée patient n'est envoyé au modèle**, le contenu transcrit est traité comme une donnée (protection contre l'injection de consignes), coûts journalisés dans `ai_usage`.
+
 ## Feuille de route
 
 1. ✅ Fondations, patients, consultations, checklist drapeaux rouges, interview de méthode
-2. Génération IA du compte rendu à partir des notes, dans le style du praticien (modèle hébergé dans le périmètre HDS)
-3. Enregistrement et transcription post-séance
-4. Import PubMed (NCBI E-utilities) et recherche documentaire
-5. Facturation simple
+2. ✅ Enregistrement, transcription, compte rendu IA dans le style du praticien, synthèse avant séance
+3. Factures PDF + relances automatisées
+4. Import PubMed + aide au praticien à partir de l'anamnèse

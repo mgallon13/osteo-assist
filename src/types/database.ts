@@ -85,6 +85,7 @@ export interface Consultation {
   additional_notes: string | null
   suggested_follow_up_date: string | null
   ai_drafted: boolean
+  quick_notes: string | null
   validated_at: string | null
   created_at: string
   updated_at: string
