@@ -182,7 +182,7 @@ export const sections: Section[] = [
       {
         id: 'current_software',
         type: 'text',
-        label: 'Que utilisez-vous aujourd’hui pour vos dossiers et factures ?',
+        label: 'Qu’utilisez-vous aujourd’hui pour vos dossiers et factures ?',
         placeholder: 'Ex. : papier, Doctolib, tableur…',
       },
       {
