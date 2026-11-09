@@ -9,9 +9,9 @@
 -- =============================================================================
 
 create extension if not exists pgcrypto;
-create extension if not exists vector;
-create extension if not exists unaccent;
-create extension if not exists pg_trgm;
+create extension if not exists vector with schema public;
+create extension if not exists unaccent with schema public;
+create extension if not exists pg_trgm with schema public;
 
 create schema if not exists app;
 
