@@ -151,7 +151,10 @@ export function Spinner({ label = 'Chargement…' }: { label?: string }) {
 }
 
 export function ErrorMessage({ error }: { error: unknown }) {
-  const message = error instanceof Error ? error.message : 'Une erreur est survenue.'
+  const message =
+    error instanceof Error ? error.message
+    : typeof error === 'object' && error && 'message' in error && typeof error.message === 'string' ? error.message
+    : 'Une erreur est survenue.'
   return (
     <div className="rounded-md border border-red-200 bg-red-50 px-4 py-3 text-sm text-red-800" role="alert">
       {message}

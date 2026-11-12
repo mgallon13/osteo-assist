@@ -16,6 +16,7 @@ const db = await PGlite.create({ extensions: { vector, pgcrypto, pg_trgm, unacce
 // --- Imitation minimale de Supabase -----------------------------------------
 await db.exec(`
   create role authenticated nologin;
+  create role anon nologin;
   create schema auth;
   create function auth.uid() returns uuid language sql stable as
     $$ select nullif(current_setting('test.uid', true), '')::uuid $$;
@@ -25,10 +26,11 @@ for (const f of readdirSync(join(root, 'migrations')).sort()) {
   await db.exec(readFileSync(join(root, 'migrations', f), 'utf8'))
 }
 await db.exec(readFileSync(join(root, 'seed.sql'), 'utf8'))
+// Ce que Supabase fournit d'office : usage des schémas public et auth.
+// Tout le reste (schéma app, tables) doit venir des migrations elles-mêmes.
 await db.exec(`
-  grant usage on schema public, app, auth to authenticated;
-  grant select, insert, update, delete on all tables in schema public to authenticated;
-  grant execute on all functions in schema public, app, auth to authenticated;
+  grant usage on schema public, auth to authenticated;
+  grant execute on function auth.uid() to authenticated;
 `)
 
 const USER_A = '00000000-0000-0000-0000-00000000000a'
