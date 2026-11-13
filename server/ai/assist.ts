@@ -11,7 +11,7 @@ import { HttpError } from '../http.js'
 import { withFallbacks, type ModelProvider } from './models.js'
 import { config } from '../config.js'
 import { describeMethod, today } from './prompts.js'
-import { searchPubmed, studyType, type Fetcher } from './pubmed.js'
+import { searchPubmedProgressive, studyType, type Fetcher } from './pubmed.js'
 import {
   getConsultation, getCurrentPractitionerId, getLatestTranscript, getMethodAnswers,
   getPseudonymousPatient, logUsage, type ConsultationRow,
@@ -163,12 +163,14 @@ export async function runPracticeAssist(deps: Deps, consultationId: string): Pro
     prompt: [
       `Motifs disponibles : ${motifNames.join(', ')}`,
       fence('anamnese', anamnesis),
-      'Choisis 1 à 3 motifs pertinents (dans la liste), et une requête PubMed en anglais (mots-clés MeSH, 3 à 6 termes, sans opérateur de date).',
+      'Choisis 1 à 3 motifs pertinents (dans la liste).',
+      'Puis propose 3 requêtes PubMed en anglais, de la plus précise à la plus large, chacune de 2 à 4 mots-clés simples, sans guillemets, crochets, opérateurs ni date.',
+      'Exemple pour une lombalgie aiguë traitée en manuel : ["acute low back pain spinal manipulation", "low back pain manual therapy", "low back pain"].',
     ].join('\n'),
     output: Output.object({
       schema: z.object({
         motifs: z.array(z.string()).max(3),
-        pubmed_query: z.string(),
+        pubmed_queries: z.array(z.string()).min(1).max(3),
       }),
     }),
   })
@@ -188,9 +190,7 @@ export async function runPracticeAssist(deps: Deps, consultationId: string): Pro
       .order('consultation_date', { ascending: false })
       .limit(60)
       .returns<(ConsultationRow & { patient_id: string })[]>(),
-    triage.output.pubmed_query.trim()
-      ? searchPubmed(triage.output.pubmed_query, { max: 4, fetcher: deps.fetcher })
-      : Promise.resolve([]),
+    searchPubmedProgressive(triage.output.pubmed_queries, { max: 4, fetcher: deps.fetcher }),
   ])
   if (casesRes.error) throw casesRes.error
   const lowerKw = keywords.map((k) => k.toLowerCase())

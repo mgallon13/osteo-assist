@@ -102,3 +102,25 @@ export async function searchPubmed(query: string, options: { max?: number; fetch
     return []
   }
 }
+
+/** Nettoie une requête générée : mots simples uniquement (pas d'opérateur ni de syntaxe PubMed). */
+export function sanitizeQuery(q: string): string {
+  return q.replace(/[\[\]"()]/g, ' ').replace(/\b(AND|OR|NOT)\b/g, ' ').replace(/\s+/g, ' ').trim().slice(0, 120)
+}
+
+/**
+ * Essaie les requêtes de la plus précise à la plus large et s'arrête dès qu'une
+ * renvoie des articles. Journalise les mots-clés et le nombre de résultats (aucune
+ * donnée patient : uniquement des termes médicaux génériques en anglais).
+ */
+export async function searchPubmedProgressive(queries: string[], options: { max?: number; fetcher?: Fetcher } = {})
+  : Promise<PubmedArticle[]> {
+  for (const raw of queries) {
+    const q = sanitizeQuery(raw)
+    if (!q) continue
+    const articles = await searchPubmed(q, options)
+    console.info('[pubmed]', JSON.stringify({ query: q, results: articles.length }))
+    if (articles.length > 0) return articles
+  }
+  return []
+}

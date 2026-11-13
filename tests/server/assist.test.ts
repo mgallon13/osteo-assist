@@ -23,7 +23,7 @@ const fetcher: Fetcher = async (url) => ({
   text: async () => url.includes('esearch') ? JSON.stringify({ esearchresult: { idlist: ['38000001'] } }) : XML,
 })
 
-const triage = { motifs: ['Lombalgie', 'Inventé'], pubmed_query: 'low back pain manipulation' }
+const triage = { motifs: ['Lombalgie', 'Inventé'], pubmed_queries: ['low back pain psoas colon bloating', 'low back pain manipulation'] }
 const synthesis = {
   summary: 'Lombalgie basse bilatérale après port de charge, sans irradiation.',
   red_flags: [
@@ -103,6 +103,22 @@ function seed() {
 }
 
 describe('PubMed', () => {
+  it('élargit la requête tant qu’aucun article n’est trouvé, et nettoie la syntaxe', async () => {
+    const seen: string[] = []
+    const f: Fetcher = async (url) => {
+      const term = new URL(url).searchParams.get('term') ?? ''
+      if (url.includes('esearch')) seen.push(term)
+      const hit = term.startsWith('(low back pain)')
+      return { ok: true, status: 200, text: async () => url.includes('esearch')
+        ? JSON.stringify({ esearchresult: { idlist: hit ? ['38000001'] : [] } }) : XML }
+    }
+    const { searchPubmedProgressive } = await import('../../server/ai/pubmed.js')
+    const r = await searchPubmedProgressive(['"low back pain"[MeSH] AND psoas', 'low back pain'], { fetcher: f })
+    expect(r).toHaveLength(1)
+    expect(seen[0]).toMatch(/^\(low back pain MeSH psoas\)/)
+    expect(seen.at(-1)).toMatch(/^\(low back pain\)/)
+  })
+
   it('extrait titre, résumé structuré, type d’étude et lien', () => {
     const [a] = parseArticles(XML)
     expect(a).toMatchObject({ pmid: '38000001', year: '2024', journal: 'J Man Ther', doi: '10.1/abc', url: 'https://pubmed.ncbi.nlm.nih.gov/38000001/' })
