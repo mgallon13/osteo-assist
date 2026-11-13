@@ -237,3 +237,13 @@ describe('messages d’erreur IA', () => {
     expect((await res.json()).error).toContain('SUPABASE_URL')
   })
 })
+
+describe('crédit AI Gateway', () => {
+  it('explique qu’une carte bancaire est requise', async () => {
+    const err = new Error('AI Gateway requires a valid credit card on file to service requests.')
+    const res = await consultationReportRoute({ auth: async () => { throw err }, models: models(report) })(
+      new Request('http://x/api', { method: 'POST', body: JSON.stringify({ consultationId: C1 }) }))
+    expect(res.status).toBe(503)
+    expect((await res.json()).error).toContain('carte bancaire')
+  })
+})

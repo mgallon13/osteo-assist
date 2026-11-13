@@ -48,6 +48,9 @@ export function explainError(e: unknown): HttpError | null {
   const root = rootError(e) as { name?: string; message?: string }
   const name = root?.name ?? ''
   const message = root?.message ?? ''
+  if (/credit card|add a card|insufficient (funds|credit)/i.test(message)) {
+    return new HttpError(503, 'AI Gateway demande une carte bancaire pour activer les crédits : vercel.com > AI Gateway > ajouter une carte.')
+  }
   if (message.startsWith('Variable d\'environnement manquante')) return new HttpError(503, `Configuration serveur incomplète. ${message}`)
   switch (name) {
     case 'GatewayAuthenticationError':
