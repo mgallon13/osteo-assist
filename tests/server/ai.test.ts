@@ -216,3 +216,24 @@ describe('routes', () => {
     expect(JSON.stringify(await res.json())).not.toContain('secret')
   })
 })
+
+describe('messages d’erreur IA', () => {
+  const route = (err: Error) => consultationReportRoute({
+    auth: async () => { throw err }, models: models(report),
+  })
+  const post = () => new Request('http://x/api', { method: 'POST', body: JSON.stringify({ consultationId: C1 }) })
+
+  it('explique une clé AI Gateway invalide, même enveloppée par les nouvelles tentatives', async () => {
+    const inner = Object.assign(new Error('Unauthorized'), { name: 'GatewayAuthenticationError' })
+    const retry = Object.assign(new Error('Failed after 3 attempts'), { name: 'AI_RetryError', lastError: inner })
+    const res = await route(retry)(post())
+    expect(res.status).toBe(503)
+    expect((await res.json()).error).toContain('AI_GATEWAY_API_KEY')
+  })
+
+  it('explique une variable d’environnement manquante sans autre détail', async () => {
+    const res = await route(new Error("Variable d'environnement manquante : SUPABASE_URL"))(post())
+    expect(res.status).toBe(503)
+    expect((await res.json()).error).toContain('SUPABASE_URL')
+  })
+})
