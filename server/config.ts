@@ -1,20 +1,17 @@
-// Configuration serveur. Tous les modèles passent par Vercel AI Gateway
-// (variable AI_GATEWAY_API_KEY) et sont interchangeables par variables d'environnement.
+import { PUBLIC_SUPABASE_KEY, PUBLIC_SUPABASE_URL } from '../shared/public-config.js'
+
+// Configuration serveur. Tous les modèles passent par Vercel AI Gateway :
+// en local via AI_GATEWAY_API_KEY, une fois déployé sur Vercel via le jeton OIDC
+// fourni automatiquement au projet. Modèles interchangeables par variables d'environnement.
 
 function optional(name: string, fallback: string): string {
   const v = process.env[name]
   return v && v.trim() ? v.trim() : fallback
 }
 
-function required(name: string): string {
-  const v = process.env[name]
-  if (!v || !v.trim()) throw new Error(`Variable d'environnement manquante : ${name}`)
-  return v.trim()
-}
-
 export const config = {
-  supabaseUrl: () => required('SUPABASE_URL'),
-  supabaseAnonKey: () => required('SUPABASE_ANON_KEY'),
+  supabaseUrl: () => optional('SUPABASE_URL', PUBLIC_SUPABASE_URL),
+  supabaseAnonKey: () => optional('SUPABASE_ANON_KEY', PUBLIC_SUPABASE_KEY),
   models: {
     // Modèles européens par défaut (Mistral)
     language: () => optional('AI_MODEL_LANGUAGE', 'mistral/mistral-medium-3.5'),
