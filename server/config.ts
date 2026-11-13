@@ -15,6 +15,8 @@ export const config = {
   models: {
     // Modèles européens par défaut (Mistral)
     language: () => optional('AI_MODEL_LANGUAGE', 'mistral/mistral-medium-3.5'),
+    /** Modèle plus puissant pour l'aide au praticien (raisonnement multi-sources) */
+    reasoning: () => optional('AI_MODEL_REASONING', 'mistral/mistral-large-4'),
     transcription: () => optional('AI_MODEL_TRANSCRIPTION', 'mistral/voxtral-small-transcribe-3'),
     embedding: () => optional('AI_MODEL_EMBEDDING', 'mistral/mistral-embed'),
   },

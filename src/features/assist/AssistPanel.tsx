@@ -69,6 +69,17 @@ function Section({ title, icon: Icon, items, sources, tone }: {
   )
 }
 
+function EmptyHint({ icon: Icon, title, text }: { icon: ComponentType<{ className?: string }>; title: string; text: string }) {
+  return (
+    <section>
+      <h3 className="mb-1 flex items-center gap-1.5 text-xs font-semibold tracking-wide text-stone-400 uppercase">
+        <Icon className="size-3.5" /> {title}
+      </h3>
+      <p className="text-sm text-stone-500">{text}</p>
+    </section>
+  )
+}
+
 const flagStatus: Record<RedFlagAssistItem['status'], { label: string; cls: string }> = {
   reported_present: { label: 'Signalé', cls: 'border-red-300 bg-red-50 text-red-800' },
   to_check: { label: 'À vérifier', cls: 'border-amber-200 bg-amber-50 text-amber-900' },
@@ -148,7 +159,14 @@ export function AssistPanel({ consultationId, canRun, beforeRun }: {
             <Section title="Pistes de traitement" icon={Lightbulb} items={result.content.treatment_leads} sources={sources} tone="text-accent-700" />
             <Section title="Si pas d’amélioration" icon={TrendingUp} items={result.content.if_no_improvement} sources={sources} />
             <Section title="Vos cas similaires" icon={History} items={result.content.similar_cases} sources={sources} tone="text-sky-800" />
+            {result.content.similar_cases.length === 0 && (
+              <EmptyHint icon={History} title="Vos cas similaires" text="Aucun cas comparable parmi vos séances validées." />
+            )}
             <Section title="Ce que dit la littérature" icon={BookOpen} items={result.content.evidence} sources={sources} tone="text-violet-800" />
+            {result.content.evidence.length === 0 && (
+              <EmptyHint icon={BookOpen} title="Ce que dit la littérature"
+                text="Aucune publication de haut niveau de preuve retrouvée sur PubMed pour ce cas." />
+            )}
 
             <div className="border-t border-stone-100 pt-3">
               <button type="button" onClick={() => setShowSources(!showSources)} className="text-xs font-medium text-stone-600 hover:text-stone-900">

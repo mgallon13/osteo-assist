@@ -49,6 +49,7 @@ function languageModel(output: unknown, capture?: { prompt?: string }) {
 function models(output: unknown, capture?: { prompt?: string }): ModelProvider {
   return {
     language: () => ({ model: languageModel(output, capture), id: 'test/llm' }),
+    reasoning: () => ({ model: languageModel(output, capture), id: 'test/llm-large' }),
     transcription: () => ({
       id: 'test/stt',
       model: new MockTranscriptionModelV4({

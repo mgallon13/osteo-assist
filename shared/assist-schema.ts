@@ -18,10 +18,12 @@ export const assistOutputSchema = z.object({
   tests_to_consider: z.array(assistItemSchema),
   treatment_leads: z.array(assistItemSchema).describe('Pistes de traitement, dans la logique de la méthode du praticien quand elle est connue.'),
   if_no_improvement: z.array(assistItemSchema),
-  similar_cases: z.array(assistItemSchema).describe('Ce qui a été fait dans des cas comparables du cabinet, et le résultat noté.'),
-  evidence: z.array(assistItemSchema).describe('Ce que disent les publications fournies, avec leur limite.'),
+  evidence: z.array(assistItemSchema).describe('Ce que disent les publications [P…] fournies, avec leur limite. Vide si aucune publication fournie.'),
 })
-export type AssistOutput = z.infer<typeof assistOutputSchema>
+export type ModelAssistOutput = z.infer<typeof assistOutputSchema>
+
+/** Sortie finale : les cas similaires sont tirés des séances, jamais rédigés par le modèle. */
+export type AssistOutput = ModelAssistOutput & { similar_cases: z.infer<typeof assistItemSchema>[] }
 
 export type AssistSourceKind = 'reference' | 'case' | 'pubmed' | 'method'
 
@@ -44,4 +46,6 @@ export interface AssistResult {
   sources: AssistSource[]
   /** Nombre de suggestions retirées car elles ne citaient aucune source valide. */
   dropped: number
+  /** Nombre de publications PubMed retrouvées pour ce cas. */
+  pubmedCount?: number
 }

@@ -41,12 +41,11 @@ const synthesis = {
   evidence: [{ text: 'Effet modeste à court terme (méta-analyse).', source_ids: ['P1'] }],
 }
 
-function models(capture: string[]): ModelProvider {
+function models(capture: string[], second: unknown = synthesis): ModelProvider {
   let call = 0
-  const outputs = [triage, synthesis]
-  return {
-    language: () => ({
-      id: 'test/llm',
+  const outputs = [triage, second]
+  const make = (id: string) => ({
+      id,
       model: new MockLanguageModelV4({
         doGenerate: async (options) => {
           capture.push(JSON.stringify(options.prompt))
@@ -61,7 +60,10 @@ function models(capture: string[]): ModelProvider {
           }
         },
       }),
-    }),
+    })
+  return {
+    language: () => make('test/llm'),
+    reasoning: () => make('test/llm-large'),
     transcription: () => { throw new Error('non utilisé') },
     embedding: () => { throw new Error('non utilisé') },
   }
@@ -140,6 +142,12 @@ describe('aide au praticien', () => {
     expect(r.content.red_flags[1]!.source_ids).toEqual(['R2'])       // « r2 » normalisé en R2
     expect(r.sources.find((s) => s.id === 'P1')).toMatchObject({ kind: 'pubmed', url: 'https://pubmed.ncbi.nlm.nih.gov/38000001/' })
     expect(r.sources.find((s) => s.id === 'C1')).toMatchObject({ kind: 'case', detail: 'Lombalgie aiguë' })
+    expect(r.pubmedCount).toBe(1)
+    // Cas similaires tirés de la base, pas du modèle (le texte inventé du mock n'apparaît pas)
+    expect(r.content.similar_cases).toHaveLength(1)
+    expect(r.content.similar_cases[0]!.text).toContain('Techniques : Lumbar roll')
+    expect(r.content.similar_cases[0]!.text).toContain('Évolution notée : Mieux à J7')
+    expect(JSON.stringify(r.content)).not.toContain('mieux à J7.')
     expect(r.sources.some((s) => s.id === 'M')).toBe(true)
     expect(db.tables.practice_assist_runs).toHaveLength(1)
     expect(db.tables.ai_usage![0]).toMatchObject({ feature: 'practice_assist', input_tokens: 400 })
@@ -172,10 +180,36 @@ describe('aide au praticien', () => {
 })
 
 describe('filtre des sources', () => {
+  const empty = { summary: '', red_flags: [], questions_to_ask: [], tests_to_consider: [], treatment_leads: [], if_no_improvement: [], evidence: [] }
+  const kinds = new Map([['R1', 'reference'], ['C1', 'case'], ['P1', 'pubmed'], ['M', 'method']] as const)
+
   it('normalise la casse et dédoublonne', () => {
-    const empty = { summary: '', red_flags: [], questions_to_ask: [], tests_to_consider: [], if_no_improvement: [], similar_cases: [], evidence: [] }
-    const { content, dropped } = keepSourced({ ...empty, treatment_leads: [{ text: 'x', source_ids: ['r1', 'R1', 'zz'] }] }, new Set(['R1']))
+    const { content, dropped } = keepSourced({ ...empty, treatment_leads: [{ text: 'x', source_ids: ['r1', 'R1', 'zz'] }] }, new Map(kinds))
     expect(content.treatment_leads[0]!.source_ids).toEqual(['R1'])
     expect(dropped).toBe(0)
+  })
+
+  it('refuse une « littérature » qui ne cite pas PubMed', () => {
+    const { content, dropped } = keepSourced({ ...empty, evidence: [
+      { text: 'Les études montrent…', source_ids: ['R1'] },
+      { text: 'Méta-analyse : effet modeste.', source_ids: ['P1', 'R1'] },
+    ] }, new Map(kinds))
+    expect(content.evidence).toEqual([{ text: 'Méta-analyse : effet modeste.', source_ids: ['P1'] }])
+    expect(dropped).toBe(1)
+  })
+
+  it('refuse un drapeau rouge appuyé uniquement sur un cas du cabinet', () => {
+    const { content } = keepSourced({ ...empty, red_flags: [{ text: 'x', source_ids: ['C1'], status: 'to_check' }] }, new Map(kinds))
+    expect(content.red_flags).toEqual([])
+  })
+})
+
+describe('sans publication', () => {
+  it('laisse la littérature vide si PubMed ne renvoie rien', async () => {
+    const none: Fetcher = async (url) => ({ ok: true, status: 200,
+      text: async () => url.includes('esearch') ? JSON.stringify({ esearchresult: { idlist: [] } }) : '' })
+    const r = await runPracticeAssist({ db: seed().client, userId: USER, models: models([]), fetcher: none }, C1)
+    expect(r.pubmedCount).toBe(0)
+    expect(r.content.evidence).toEqual([])   // la ligne citant P1 est retirée : P1 n'existe pas
   })
 })
