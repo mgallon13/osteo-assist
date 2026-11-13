@@ -24,7 +24,7 @@ En production, Vercel déploie `api/**` comme fonctions serverless sans configur
 
 1. Créer un projet Supabase (région UE).
 2. Appliquer les migrations dans l'ordre : `supabase/migrations/*.sql` (via `supabase db push` avec la CLI, ou l'éditeur SQL).
-3. Charger les données de référence : `supabase/seed.sql`.
+3. Charger les données de référence : `supabase/seed.sql` puis `supabase/seed_reference.sql`.
 
 ## Tests
 
@@ -77,9 +77,21 @@ docs/                   usage prévu, décisions
 
 Garde-fous : les endpoints agissent avec le jeton de l'utilisateur (aucune clé service_role), **aucun nom ni coordonnée patient n'est envoyé au modèle**, le contenu transcrit est traité comme une donnée (protection contre l'injection de consignes), coûts journalisés dans `ai_usage`.
 
+## Aide au praticien
+
+Sur la page consultation, le panneau **Aide au praticien** analyse l'anamnèse enregistrée (champs, notes rapides, transcription) :
+
+1. identifie le ou les motifs du référentiel concernés et construit une requête PubMed ;
+2. récupère les sources : fiches du **référentiel de pratiques** (commun + fiches du cabinet), **cas similaires** validés du praticien, **publications PubMed** de haut niveau de preuve des 10 dernières années (NCBI E-utilities), **profil « Ma méthode »** ;
+3. produit des pistes classées (drapeaux rouges, questions manquantes, tests, traitement, si pas d'amélioration, cas similaires, littérature), **chacune liée à ses sources** ; toute suggestion citant une source inexistante est retirée.
+
+Chaque analyse est conservée (`practice_assist_runs`) avec ses sources. Le référentiel de départ (`supabase/reference/cards.py` → `seed_reference.sql`) est issu des entretiens terrain et de connaissances cliniques générales, **à faire valider** par un référent clinique.
+
+Variables facultatives : `NCBI_EMAIL`, `NCBI_API_KEY` (quota PubMed plus élevé).
+
 ## Feuille de route
 
 1. ✅ Fondations, patients, consultations, checklist drapeaux rouges, interview de méthode
 2. ✅ Enregistrement, transcription, compte rendu IA dans le style du praticien, synthèse avant séance
-3. Factures PDF + relances automatisées
-4. Import PubMed + aide au praticien à partir de l'anamnèse
+3. ✅ Aide au praticien : référentiel de pratiques, cas similaires, PubMed, pistes sourcées
+4. Factures PDF + relances automatisées

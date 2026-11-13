@@ -8,6 +8,7 @@ import { useAuth, useWorkspace } from '@/features/auth/AuthProvider'
 import { usePatient } from '@/features/patients/api'
 import { RedFlagChecklist } from '@/features/red-flags/RedFlagChecklist'
 import { SessionPanel } from '@/features/session/SessionPanel'
+import { AssistPanel } from '@/features/assist/AssistPanel'
 import { reportKeys, type ConsultationReport, type ReportSource } from '../../../shared/ai-schemas'
 
 const sourceLabels: Record<ReportSource, string> = {
@@ -39,7 +40,7 @@ export function ConsultationPage() {
   const [confirming, setConfirming] = useState(false)
   const [aiDraft, setAiDraft] = useState<ConsultationReport | null>(null)
 
-  const { register, handleSubmit, reset, setValue, formState } = useForm<ReportValues>()
+  const { register, handleSubmit, reset, setValue, getValues, formState } = useForm<ReportValues>()
 
   const applyDraft = (report: ConsultationReport) => {
     for (const key of reportKeys) {
@@ -184,6 +185,16 @@ export function ConsultationPage() {
         </div>
 
         <div className="space-y-5">
+          <AssistPanel
+            consultationId={c.id}
+            canRun={isAuthor}
+            beforeRun={async () => {
+              if (!formState.isDirty) return
+              const values = getValues()
+              await save.mutateAsync({ ...values, ...(aiDraft ? { ai_drafted: true } : {}) })
+              reset(values)
+            }}
+          />
           <RedFlagChecklist
             consultationId={c.id}
             organizationId={organizationId}

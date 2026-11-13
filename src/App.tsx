@@ -10,6 +10,7 @@ import { PatientFormPage } from '@/features/patients/PatientFormPage'
 import { PatientDetailPage } from '@/features/patients/PatientDetailPage'
 import { ConsultationPage } from '@/features/consultations/ConsultationPage'
 import { MethodProfilePage } from '@/features/method-profile/MethodProfilePage'
+import { ReferencePage } from '@/features/assist/ReferencePage'
 import type { ReactNode } from 'react'
 
 function ClinicalOnly({ children }: { children: ReactNode }) {
@@ -34,6 +35,7 @@ export default function App() {
         <Route path="patients/:patientId/modifier" element={<PatientFormPage />} />
         <Route path="consultations/:consultationId" element={<ClinicalOnly><ConsultationPage /></ClinicalOnly>} />
         <Route path="methode" element={<ClinicalOnly><MethodProfilePage /></ClinicalOnly>} />
+        <Route path="referentiel" element={<ClinicalOnly><ReferencePage /></ClinicalOnly>} />
         <Route path="*" element={<Navigate to="/" replace />} />
       </Route>
     </Routes>

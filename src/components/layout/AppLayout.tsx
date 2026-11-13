@@ -1,5 +1,5 @@
 import { NavLink, Outlet } from 'react-router'
-import { BookOpen, FlaskConical, LayoutDashboard, LogOut, Settings, Sparkles, Users } from 'lucide-react'
+import { BookOpen, FlaskConical, LayoutDashboard, Library, LogOut, Settings, Sparkles, Users } from 'lucide-react'
 import type { ComponentType } from 'react'
 import { cn } from '@/lib/utils'
 import { useAuth, useWorkspace } from '@/features/auth/AuthProvider'
@@ -16,6 +16,7 @@ const nav: NavItem[] = [
   { to: '/', label: 'Tableau de bord', icon: LayoutDashboard },
   { to: '/patients', label: 'Patients', icon: Users },
   { to: '/methode', label: 'Ma méthode', icon: Sparkles, clinical: true },
+  { to: '/referentiel', label: 'Référentiel', icon: Library, clinical: true },
   { to: '/bibliotheque', label: 'Bibliothèque scientifique', icon: BookOpen, soon: true },
   { to: '/parametres', label: 'Paramètres', icon: Settings, soon: true },
 ]

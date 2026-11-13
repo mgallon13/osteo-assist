@@ -26,6 +26,7 @@ for (const f of readdirSync(join(root, 'migrations')).sort()) {
   await db.exec(readFileSync(join(root, 'migrations', f), 'utf8'))
 }
 await db.exec(readFileSync(join(root, 'seed.sql'), 'utf8'))
+await db.exec(readFileSync(join(root, 'seed_reference.sql'), 'utf8'))
 // Ce que Supabase fournit d'office : usage des schémas public et auth.
 // Tout le reste (schéma app, tables) doit venir des migrations elles-mêmes.
 await db.exec(`
@@ -225,6 +226,32 @@ await test('Usage IA : lisible par le propriétaire, pas par la secrétaire', as
     `insert into ai_usage (organization_id, user_id, feature, model) values ($1, $2, 'transcription', 'm')`, [orgA, STAFF_A]))
   await as(STAFF_A, async (tx) => assert.equal((await tx.query(`select * from ai_usage`)).rows.length, 0))
   await as(USER_A, async (tx) => assert.equal((await tx.query(`select * from ai_usage`)).rows.length, 1))
+})
+
+console.log('\nTests aide au praticien')
+
+await test('Le référentiel commun est lisible par les praticiens, pas par la secrétaire', async () => {
+  await as(USER_B, async (tx) => assert.ok((await tx.query(`select * from reference_cards where organization_id is null`)).rows.length > 40))
+  await as(STAFF_A, async (tx) => assert.equal((await tx.query(`select * from reference_cards`)).rows.length, 0))
+})
+
+await test('Personne ne peut modifier le référentiel commun', () =>
+  expectError(as(USER_A, (tx) => tx.query(
+    `insert into reference_cards (organization_id, motif, section, content, source_label) values (null, 'X', 'tests', 'x', 'x')`)),
+  /row-level security/, 'écriture référentiel commun'))
+
+await test('Les fiches d\'un cabinet restent privées à ce cabinet', async () => {
+  await as(USER_A, (tx) => tx.query(
+    `insert into reference_cards (organization_id, motif, section, content, source_label) values ($1, 'Lombalgie', 'approach', 'Ma technique maison', 'Cabinet A')`, [orgA]))
+  await as(USER_B, async (tx) => assert.equal(
+    (await tx.query(`select * from reference_cards where content = 'Ma technique maison'`)).rows.length, 0))
+})
+
+await test('Une analyse ne peut être enregistrée que par l\'auteur de la consultation', async () => {
+  const prB = await as(USER_B, async (tx) => (await tx.query(`select app.current_practitioner_id($1) as id`, [orgB])).rows[0].id)
+  await expectError(as(USER_B, (tx) => tx.query(
+    `insert into practice_assist_runs (organization_id, consultation_id, practitioner_id, content, model) values ($1, $2, $3, '{}', 'm')`,
+    [orgA, consult2, prB])), /row-level security/, 'analyse cross-tenant')
 })
 
 console.log(`\n${passed} tests réussis`)
