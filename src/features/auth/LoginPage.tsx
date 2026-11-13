@@ -15,7 +15,17 @@ export function LoginPage() {
   const [mode, setMode] = useState<'signin' | 'signup'>('signin')
   const [error, setError] = useState<unknown>(null)
   const [info, setInfo] = useState<string | null>(null)
-  const { register, handleSubmit, formState } = useForm<FormValues>({ resolver: zodResolver(schema) })
+  const { register, handleSubmit, formState, getValues } = useForm<FormValues>({ resolver: zodResolver(schema) })
+
+  const [resetSent, setResetSent] = useState(false)
+  const forgot = async () => {
+    setError(null)
+    const email = getValues('email')
+    if (!email || !email.includes('@')) return setError(new Error('Saisissez d’abord votre adresse e-mail ci-dessus.'))
+    const { error: err } = await supabase.auth.resetPasswordForEmail(email, { redirectTo: window.location.origin })
+    if (err) return setError(err)
+    setResetSent(true)
+  }
 
   const onSubmit = handleSubmit(async ({ email, password }) => {
     setError(null)
@@ -56,9 +66,19 @@ export function LoginPage() {
             </Field>
             {error != null && <ErrorMessage error={error} />}
             {info && <p className="rounded-md bg-accent-50 px-3 py-2 text-sm text-accent-700">{info}</p>}
+            {resetSent && (
+              <p className="rounded-md bg-accent-50 px-3 py-2 text-sm text-accent-700">
+                Si un compte existe pour cette adresse, un lien de réinitialisation vient d’être envoyé. Pensez à vérifier les spams.
+              </p>
+            )}
             <Button type="submit" className="w-full" loading={formState.isSubmitting}>
               {mode === 'signin' ? 'Se connecter' : 'Créer le compte'}
             </Button>
+            {mode === 'signin' && (
+              <button type="button" onClick={forgot} className="w-full text-center text-sm text-stone-500 hover:text-stone-900 hover:underline">
+                Mot de passe oublié ?
+              </button>
+            )}
           </form>
         </Card>
 

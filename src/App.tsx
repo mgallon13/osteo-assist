@@ -4,6 +4,7 @@ import { AppLayout } from '@/components/layout/AppLayout'
 import { useAuth, useWorkspace } from '@/features/auth/AuthProvider'
 import { LoginPage } from '@/features/auth/LoginPage'
 import { OnboardingPage } from '@/features/auth/OnboardingPage'
+import { ResetPasswordPage } from '@/features/auth/ResetPasswordPage'
 import { DashboardPage } from '@/features/dashboard/DashboardPage'
 import { PatientsPage } from '@/features/patients/PatientsPage'
 import { PatientFormPage } from '@/features/patients/PatientFormPage'
@@ -19,9 +20,10 @@ function ClinicalOnly({ children }: { children: ReactNode }) {
 }
 
 export default function App() {
-  const { session, sessionLoading, membership, workspaceLoading } = useAuth()
+  const { session, sessionLoading, membership, workspaceLoading, recovering } = useAuth()
 
   if (sessionLoading || workspaceLoading) return <Spinner />
+  if (recovering && session) return <ResetPasswordPage />
   if (!session) return <LoginPage />
   if (!membership) return <OnboardingPage />
 

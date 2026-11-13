@@ -5,6 +5,8 @@ import { supabase } from '@/lib/supabase'
 import type { Membership, Practitioner } from '@/types/database'
 
 interface AuthContextValue {
+  recovering: boolean
+  endRecovery: () => void
   session: Session | null
   sessionLoading: boolean
   membership: Membership | null
@@ -19,13 +21,20 @@ const AuthContext = createContext<AuthContextValue | null>(null)
 export function AuthProvider({ children }: { children: ReactNode }) {
   const [session, setSession] = useState<Session | null>(null)
   const [sessionLoading, setSessionLoading] = useState(true)
+  // Arrivée par un lien « mot de passe oublié » : afficher l'écran de nouveau mot de passe
+  const [recovering, setRecovering] = useState(
+    () => typeof window !== 'undefined' && window.location.hash.includes('type=recovery'),
+  )
 
   useEffect(() => {
     supabase.auth.getSession().then(({ data }) => {
       setSession(data.session)
       setSessionLoading(false)
     })
-    const { data } = supabase.auth.onAuthStateChange((_event, s) => setSession(s))
+    const { data } = supabase.auth.onAuthStateChange((event, s) => {
+      if (event === 'PASSWORD_RECOVERY') setRecovering(true)
+      setSession(s)
+    })
     return () => data.subscription.unsubscribe()
   }, [])
 
@@ -59,6 +68,8 @@ export function AuthProvider({ children }: { children: ReactNode }) {
   })
 
   const value: AuthContextValue = {
+    recovering,
+    endRecovery: () => setRecovering(false),
     session,
     sessionLoading,
     membership: workspace.data?.membership ?? null,
