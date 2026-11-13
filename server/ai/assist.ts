@@ -8,7 +8,8 @@ import {
   type ModelAssistOutput,
 } from '../../shared/assist-schema.js'
 import { HttpError } from '../http.js'
-import type { ModelProvider } from './models.js'
+import { withFallbacks, type ModelProvider } from './models.js'
+import { config } from '../config.js'
 import { describeMethod, today } from './prompts.js'
 import { searchPubmed, studyType, type Fetcher } from './pubmed.js'
 import {
@@ -144,8 +145,11 @@ export async function runPracticeAssist(deps: Deps, consultationId: string): Pro
   }
 
   const motifNames = [...new Set(cardsRes.data.map((c) => c.motif).filter((m) => m !== 'Transversal'))]
-  const { model: triageModel } = models.language()
+  const { model: triageModel, id: triageId } = models.language()
   const { model, id: modelId } = models.reasoning()
+  // Replis si un modèle est indisponible : Mistral Large précédent, puis le modèle standard
+  const reasoningFallbacks = withFallbacks('mistral/mistral-large-3', triageId)
+  const triageFallbacks = withFallbacks('mistral/mistral-small', config.models.reasoning())
   const started = Date.now()
   let inputTokens = 0
   let outputTokens = 0
@@ -153,6 +157,7 @@ export async function runPracticeAssist(deps: Deps, consultationId: string): Pro
   // 1. Comprendre le cas : motifs du référentiel concernés + requête PubMed
   const triage = await generateText({
     model: triageModel,
+    providerOptions: triageFallbacks,
     temperature: 0,
     system: 'Tu classes une anamnèse d’ostéopathie. Réponds uniquement avec la sortie structurée demandée.',
     prompt: [
@@ -232,6 +237,7 @@ export async function runPracticeAssist(deps: Deps, consultationId: string): Pro
     model,
     temperature: 0,
     system: ASSIST_SYSTEM,
+    providerOptions: reasoningFallbacks,
     prompt: [
       `DATE DU JOUR : ${today()}`,
       `PATIENT (pseudonymisé) : ${patient.age ?? '?'} ans, ${patient.profession || 'profession non renseignée'}. Antécédents connus : ${patient.medical_history || 'non renseignés'}.`,

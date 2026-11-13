@@ -28,3 +28,12 @@ export const gatewayModels: ModelProvider = {
     return { model: gateway.embeddingModel(id), id }
   },
 }
+
+/**
+ * Options AI Gateway : modèles de repli essayés dans l'ordre si le modèle principal
+ * est indisponible (erreur fournisseur, surcharge), pour ne pas bloquer le praticien.
+ */
+export function withFallbacks(...models: string[]) {
+  const list = [...new Set(models.filter(Boolean))]
+  return list.length ? { gateway: { models: list } } : undefined
+}

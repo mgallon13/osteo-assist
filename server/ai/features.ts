@@ -6,7 +6,7 @@ import type { SupabaseClient } from '@supabase/supabase-js'
 import { consultationReportSchema, patientBriefSchema, type ConsultationReport, type PatientBrief } from '../../shared/ai-schemas.js'
 import { config } from '../config.js'
 import { HttpError } from '../http.js'
-import type { ModelProvider } from './models.js'
+import { withFallbacks, type ModelProvider } from './models.js'
 import { BRIEF_SYSTEM, REPORT_SYSTEM, buildBriefPrompt, buildReportPrompt } from './prompts.js'
 import {
   getConsultation, getCurrentPractitionerId, getLatestTranscript, getMethodAnswers,
@@ -130,6 +130,7 @@ export async function draftConsultationReport({ db, userId, models }: Deps, cons
   const result = await generateText({
     model,
     system: REPORT_SYSTEM,
+    providerOptions: withFallbacks('mistral/mistral-large-4', 'mistral/mistral-small'),
     prompt: buildReportPrompt({ method, patient, history, transcript: transcriptText, quickNotes: consultation.quick_notes }),
     output: Output.object({ schema: consultationReportSchema }),
     temperature: 0.1,
@@ -189,6 +190,7 @@ export async function getPatientBrief({ db, userId, models }: Deps, patientId: s
   const result = await generateText({
     model,
     system: BRIEF_SYSTEM,
+    providerOptions: withFallbacks('mistral/mistral-large-4', 'mistral/mistral-small'),
     prompt: buildBriefPrompt({ method, patient: pseudo, consultations }),
     output: Output.object({ schema: patientBriefSchema }),
     temperature: 0.1,
