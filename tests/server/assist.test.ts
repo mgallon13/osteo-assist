@@ -229,3 +229,11 @@ describe('sans publication', () => {
     expect(r.content.evidence).toEqual([])   // la ligne citant P1 est retirée : P1 n'existe pas
   })
 })
+
+describe('type d’étude', () => {
+  it('reconnaît une revue systématique par son titre quand l’indexation est incomplète', () => {
+    expect(studyType(['Journal Article', 'Review'], 'Prevalence of trigger points: A Systematic Review')).toBe('Revue systématique')
+    expect(studyType(['Journal Article'], 'Manual therapy for neck pain: a randomized controlled trial')).toBe('Essai randomisé')
+    expect(studyType(['Journal Article', 'Review'], 'Narrative overview')).toBe('Revue narrative')
+  })
+})

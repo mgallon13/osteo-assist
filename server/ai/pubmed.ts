@@ -64,8 +64,13 @@ export function parseArticles(xml: string): PubmedArticle[] {
 }
 
 /** Type d'étude lisible, du plus au moins élevé dans la hiérarchie des preuves. */
-export function studyType(types: string[]): string {
+export function studyType(types: string[], title = ''): string {
   const t = types.map((x) => x.toLowerCase())
+  const tt = title.toLowerCase()
+  // Le titre est souvent plus fiable que l'indexation, parfois incomplète sur les articles récents
+  if (/meta-?analys/.test(tt)) t.push('meta-analysis')
+  if (/systematic review/.test(tt)) t.push('systematic review')
+  if (/randomi[sz]ed/.test(tt) && /trial/.test(tt)) t.push('randomized controlled trial')
   if (t.some((x) => x.includes('guideline'))) return 'Recommandation'
   if (t.includes('meta-analysis')) return 'Méta-analyse'
   if (t.includes('systematic review')) return 'Revue systématique'

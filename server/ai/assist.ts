@@ -118,7 +118,7 @@ RÈGLES ABSOLUES
 2. Tu ne poses pas de diagnostic. Formule des pistes : « À vérifier », « À envisager », « Penser à ».
 3. LATÉRALITÉ : respecte strictement le côté (gauche / droite, G / D) écrit dans l’anamnèse. Ne change jamais un côté. Si le côté n’est pas précisé, ne l’invente pas.
 4. NE REDEMANDE RIEN DE DÉJÀ DOCUMENTÉ. Une information présente dans l’anamnèse, y compris sous forme négative (« pas de trajet électrique », « pas de fièvre », « pas de radio »), est connue : pas de question dessus. Les tests conditionnés à un signe que l’anamnèse écarte (ex. tests radiculaires alors que « pas d’irradiation ») ne sont pas proposés.
-5. Signes d’alerte : indique pour chacun reported_absent (l’anamnèse dit qu’il est absent), reported_present (l’anamnèse le mentionne) ou to_check (non documenté). Un signe rapporté présent impose de suggérer une réorientation.
+5. Signes d’alerte : reported_absent UNIQUEMENT si l’anamnèse écrit explicitement l’absence de CE signe précis (ex. « pas de fièvre ») ; reported_present si elle le mentionne ; sinon to_check. Dans le doute, to_check. Un élément ambigu (ex. douleur « pire le matin », qui peut évoquer une raideur inflammatoire) se met en to_check en le signalant. Un signe rapporté présent impose de suggérer une réorientation.
 6. Pistes de traitement : priorise celles qui correspondent aux registres et au vocabulaire du praticien (source M) ; reprends ses noms de techniques.
 7. Cas du cabinet [C…] : tu peux t’en servir pour une piste, en restant fidèle à ce qui y est écrit. N’invente aucun résultat, aucun nombre de séances, aucune évolution.
 8. Publications [P…] : une phrase sur l’apport, puis la limite (type d’étude, population), sans surestimer.
@@ -165,7 +165,8 @@ export async function runPracticeAssist(deps: Deps, consultationId: string): Pro
       fence('anamnese', anamnesis),
       'Choisis 1 à 3 motifs pertinents (dans la liste).',
       'Puis propose 3 requêtes PubMed en anglais, de la plus précise à la plus large, chacune de 2 à 4 mots-clés simples, sans guillemets, crochets, opérateurs ni date.',
-      'Exemple pour une lombalgie aiguë traitée en manuel : ["acute low back pain spinal manipulation", "low back pain manual therapy", "low back pain"].',
+      'Les requêtes visent l’EFFICACITÉ DES PRISES EN CHARGE (thérapie manuelle, manipulation, exercice, conseils) pour la plainte principale, pas l’imagerie ni l’épidémiologie.',
+      'Exemple pour une lombalgie aiguë traitée en manuel : ["acute low back pain spinal manipulation", "low back pain manual therapy", "low back pain exercise therapy"].',
     ].join('\n'),
     output: Output.object({
       schema: z.object({
@@ -222,7 +223,7 @@ export async function runPracticeAssist(deps: Deps, consultationId: string): Pro
   })
   articles.forEach((a, i) => {
     const id = `P${i + 1}`
-    const type = studyType(a.publicationTypes)
+    const type = studyType(a.publicationTypes, a.title)
     sources.push({ id, kind: 'pubmed', label: a.title, detail: `${type} · ${a.journal ?? ''} ${a.year ?? ''} · PMID ${a.pmid}`.trim(), url: a.url })
     blocks.push(`[${id}] ${type}, ${a.year ?? 's.d.'} — ${a.title}\nRésumé : ${a.abstract.slice(0, 1800)}`)
   })
