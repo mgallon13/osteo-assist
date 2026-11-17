@@ -11,6 +11,12 @@ export interface Organization {
   legal_name: string | null
   siret: string | null
   address: string | null
+  default_fee_cents: number | null
+  vat_mention: string
+  invoice_footer: string | null
+  maintenance_days: number
+  reminders_enabled: boolean
+  message_signature: string | null
 }
 
 export interface Membership {
@@ -42,6 +48,9 @@ export interface Patient {
   profession: string | null
   referring_doctor: string | null
   admin_notes: string | null
+  consent_email: boolean
+  consent_sms: boolean
+  consent_at: string | null
   is_synthetic: boolean
   archived_at: string | null
   created_at: string
@@ -117,4 +126,46 @@ export interface MethodProfile {
   questionnaire_version: number
   answers: Record<string, string | string[]>
   completed_at: string | null
+}
+
+export type InvoiceStatus = 'draft' | 'issued' | 'paid' | 'cancelled'
+export type PaymentMethodValue = 'card' | 'cash' | 'check' | 'transfer' | 'other'
+
+export interface Invoice {
+  id: string
+  organization_id: string
+  patient_id: string
+  practitioner_id: string
+  consultation_id: string | null
+  kind: 'invoice' | 'credit_note'
+  credit_for: string | null
+  number: string | null
+  status: InvoiceStatus
+  label: string
+  service_date: string
+  issue_date: string | null
+  amount_cents: number
+  payment_method: PaymentMethodValue | null
+  paid_at: string | null
+  sent_at: string | null
+  created_at: string
+  patients?: { first_name: string; last_name: string; email: string | null } | null
+}
+
+export interface PatientReminder {
+  id: string
+  organization_id: string
+  patient_id: string
+  consultation_id: string | null
+  invoice_id: string | null
+  kind: 'follow_up' | 'maintenance' | 'unpaid_invoice'
+  due_date: string
+  status: 'pending' | 'sent' | 'dismissed' | 'cancelled'
+  channel: string
+  message: string | null
+  sent_at: string | null
+  created_at: string
+  patients?: { first_name: string; last_name: string; email: string | null; consent_email: boolean } | null
+  consultations?: { consultation_date: string } | null
+  invoices?: { number: string | null; amount_cents: number; issue_date: string | null } | null
 }

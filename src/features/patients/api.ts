@@ -17,6 +17,8 @@ export const patientSchema = z.object({
   // Données cliniques (table séparée)
   medical_history: z.string().optional(),
   recurring_complaints: z.string().optional(),
+  consent_email: z.boolean(),
+  consent_sms: z.boolean(),
   // Tant que la conformité HDS n'est pas en place : fictif obligatoire
   is_synthetic: z.literal(true, { message: 'Seuls les patients fictifs sont autorisés pour le moment' }),
 })
@@ -73,10 +75,15 @@ export function usePatientClinical(patientId: string, enabled: boolean) {
   })
 }
 
-function splitValues(values: PatientFormValues) {
+function splitValues(values: PatientFormValues, previous?: { consent_email: boolean; consent_sms: boolean; consent_at: string | null }) {
   const { medical_history, recurring_complaints, ...admin } = values
+  // Date de l'accord : posée quand un accord est donné, conservée sinon
+  const newlyGranted = (admin.consent_email && !previous?.consent_email) || (admin.consent_sms && !previous?.consent_sms)
+  const consent_at = admin.consent_email || admin.consent_sms
+    ? (newlyGranted ? new Date().toISOString() : previous?.consent_at ?? new Date().toISOString())
+    : null
   return {
-    admin: emptyToNull({ ...admin, birth_date: admin.birth_date || null }),
+    admin: emptyToNull({ ...admin, consent_at, birth_date: admin.birth_date || null }),
     clinical: emptyToNull({ medical_history: medical_history ?? '', recurring_complaints: recurring_complaints ?? '' }),
   }
 }
@@ -84,8 +91,10 @@ function splitValues(values: PatientFormValues) {
 export function useSavePatient(organizationId: string, canAccessClinical: boolean) {
   const qc = useQueryClient()
   return useMutation({
-    mutationFn: async ({ id, values }: { id?: string; values: PatientFormValues }) => {
-      const { admin, clinical } = splitValues(values)
+    mutationFn: async ({ id, values, previous }: {
+      id?: string; values: PatientFormValues; previous?: { consent_email: boolean; consent_sms: boolean; consent_at: string | null }
+    }) => {
+      const { admin, clinical } = splitValues(values, previous)
       const { data: patient, error } = id
         ? await supabase.from('patients').update(admin).eq('id', id).select().single<Patient>()
         : await supabase.from('patients').insert({ ...admin, organization_id: organizationId }).select().single<Patient>()

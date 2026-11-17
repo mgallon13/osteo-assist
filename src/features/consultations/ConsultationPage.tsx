@@ -9,6 +9,7 @@ import { usePatient } from '@/features/patients/api'
 import { RedFlagChecklist } from '@/features/red-flags/RedFlagChecklist'
 import { SessionPanel } from '@/features/session/SessionPanel'
 import { AssistPanel } from '@/features/assist/AssistPanel'
+import { ConsultationInvoiceCard } from '@/features/billing/components'
 import { reportKeys, type ConsultationReport, type ReportSource } from '../../../shared/ai-schemas'
 
 const sourceLabels: Record<ReportSource, string> = {
@@ -195,6 +196,10 @@ export function ConsultationPage() {
               reset(values)
             }}
           />
+          {isAuthor && (
+            <ConsultationInvoiceCard consultationId={c.id} patientId={c.patient_id}
+              practitionerId={c.practitioner_id} serviceDate={c.consultation_date} />
+          )}
           <RedFlagChecklist
             consultationId={c.id}
             organizationId={organizationId}

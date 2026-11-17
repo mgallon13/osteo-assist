@@ -1,10 +1,11 @@
 import { Link } from 'react-router'
 import { useQuery } from '@tanstack/react-query'
-import { ArrowRight, FileText, Sparkles, Users } from 'lucide-react'
+import { ArrowRight, BellRing, FileText, Receipt, Sparkles, Users } from 'lucide-react'
 import { Badge, Card, CardHeader, ErrorMessage, PageHeader, Spinner } from '@/components/ui'
 import { formatDateTime } from '@/lib/utils'
 import { supabase } from '@/lib/supabase'
 import { useWorkspace } from '@/features/auth/AuthProvider'
+import { formatEuros } from '../../../shared/billing'
 
 interface RecentConsultation {
   id: string
@@ -20,12 +21,24 @@ export function DashboardPage() {
   const stats = useQuery({
     queryKey: ['dashboard', organizationId],
     queryFn: async () => {
-      const patients = await supabase
-        .from('patients').select('id', { count: 'exact', head: true })
-        .eq('organization_id', organizationId).is('archived_at', null)
-      if (patients.error) throw patients.error
+      const today = new Date().toISOString().slice(0, 10)
+      const [patients, remindersDue, unpaid] = await Promise.all([
+        supabase.from('patients').select('id', { count: 'exact', head: true })
+          .eq('organization_id', organizationId).is('archived_at', null),
+        supabase.from('patient_reminders').select('id', { count: 'exact', head: true })
+          .eq('organization_id', organizationId).eq('status', 'pending').lte('due_date', today),
+        supabase.from('invoices').select('amount_cents')
+          .eq('organization_id', organizationId).eq('kind', 'invoice').eq('status', 'issued')
+          .returns<{ amount_cents: number }[]>(),
+      ])
+      for (const r of [patients, remindersDue, unpaid]) if (r.error) throw r.error
+      const admin = {
+        remindersDue: remindersDue.count ?? 0,
+        unpaidCents: (unpaid.data ?? []).reduce((s, i) => s + i.amount_cents, 0),
+        unpaidCount: unpaid.data?.length ?? 0,
+      }
 
-      if (!canAccessClinical) return { patientCount: patients.count ?? 0, drafts: 0, recent: [], hasProfile: true }
+      if (!canAccessClinical) return { patientCount: patients.count ?? 0, drafts: 0, recent: [], hasProfile: true, ...admin }
 
       const [drafts, recent, profile] = await Promise.all([
         supabase.from('consultations').select('id', { count: 'exact', head: true })
@@ -43,6 +56,7 @@ export function DashboardPage() {
       ])
       for (const r of [drafts, recent, profile]) if (r.error) throw r.error
       return {
+        ...admin,
         patientCount: patients.count ?? 0,
         drafts: drafts.count ?? 0,
         recent: recent.data ?? [],
@@ -70,7 +84,7 @@ export function DashboardPage() {
         </Link>
       )}
 
-      <div className="mb-5 grid gap-4 sm:grid-cols-2">
+      <div className="mb-5 grid gap-4 sm:grid-cols-2 lg:grid-cols-4">
         <Card className="flex items-center gap-4 p-5">
           <div className="rounded-md bg-stone-100 p-2.5 text-stone-600"><Users className="size-5" /></div>
           <div>
@@ -87,6 +101,24 @@ export function DashboardPage() {
             </div>
           </Card>
         )}
+        <Link to="/relances">
+          <Card className="flex h-full items-center gap-4 p-5 hover:border-accent-500">
+            <div className="rounded-md bg-accent-50 p-2.5 text-accent-700"><BellRing className="size-5" /></div>
+            <div>
+              <p className="text-2xl font-semibold tabular-nums">{s.remindersDue}</p>
+              <p className="text-sm text-stone-500">Relances à traiter</p>
+            </div>
+          </Card>
+        </Link>
+        <Link to="/facturation">
+          <Card className="flex h-full items-center gap-4 p-5 hover:border-accent-500">
+            <div className="rounded-md bg-stone-100 p-2.5 text-stone-600"><Receipt className="size-5" /></div>
+            <div>
+              <p className="text-2xl font-semibold tabular-nums">{formatEuros(s.unpaidCents)}</p>
+              <p className="text-sm text-stone-500">À encaisser ({s.unpaidCount})</p>
+            </div>
+          </Card>
+        </Link>
       </div>
 
       {canAccessClinical && (

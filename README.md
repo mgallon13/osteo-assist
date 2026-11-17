@@ -89,9 +89,16 @@ Chaque analyse est conservée (`practice_assist_runs`) avec ses sources. Le réf
 
 Variables facultatives : `NCBI_EMAIL`, `NCBI_API_KEY` (quota PubMed plus élevé).
 
+## Factures et relances
+
+- **Factures** (`/facturation`, et depuis chaque consultation) : numérotation continue par cabinet (`AAAA-NNNN`), facture figée dès son émission (trigger), aucune suppression, correction par **avoir** (`cancel_invoice`). PDF généré côté serveur (`/api/invoices/pdf`) avec ADELI, SIRET et mention de TVA (Paramètres).
+- **Relances** (`/relances`) : préparées automatiquement à la validation d'une séance (suivi à la date proposée, entretien après N jours) et pour les factures impayées depuis 15 jours. **Rien n'est envoyé sans validation** ; message sans aucune information médicale ; e-mail seulement si le patient a donné son accord (fiche patient).
+- **Envoi d'e-mails** : via Resend, variables `RESEND_API_KEY` et `EMAIL_FROM` (adresse d'un domaine vérifié). Sans elles, l'envoi renvoie un message explicite ; le PDF et le bouton « Copier » restent utilisables.
+
 ## Feuille de route
 
 1. ✅ Fondations, patients, consultations, checklist drapeaux rouges, interview de méthode
 2. ✅ Enregistrement, transcription, compte rendu IA dans le style du praticien, synthèse avant séance
 3. ✅ Aide au praticien : référentiel de pratiques, cas similaires, PubMed, pistes sourcées
-4. Factures PDF + relances automatisées
+4. ✅ Factures PDF + relances préparées automatiquement
+5. Bibliothèque scientifique, migration HDS avant tout patient réel

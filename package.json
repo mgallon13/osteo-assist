@@ -22,10 +22,12 @@
     "ai": "^7.0.163",
     "clsx": "^2.1.1",
     "lucide-react": "^1.70.0",
+    "pdf-lib": "^1.17.1",
     "react": "^19.3.1",
     "react-dom": "^19.3.1",
     "react-hook-form": "^7.91.0",
     "react-router": "^8.5.1",
+    "resend": "^6.38.1",
     "tailwind-merge": "^3.7.0",
     "zod": "^4.6.7"
   },

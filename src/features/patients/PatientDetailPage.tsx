@@ -6,6 +6,8 @@ import { useWorkspace } from '@/features/auth/AuthProvider'
 import { useCreateConsultation, usePatientConsultations } from '@/features/consultations/api'
 import { usePatient, usePatientClinical } from './api'
 import { PatientBriefCard } from '@/features/session/PatientBriefCard'
+import { usePatientInvoices } from '@/features/billing/api'
+import { InvoiceTable } from '@/features/billing/components'
 
 function InfoRow({ label, value }: { label: string; value: string | null | undefined }) {
   return (
@@ -24,6 +26,7 @@ export function PatientDetailPage() {
   const clinical = usePatientClinical(patientId, canAccessClinical)
   const consultations = usePatientConsultations(patientId, canAccessClinical)
   const create = useCreateConsultation()
+  const invoices = usePatientInvoices(patientId)
 
   if (patient.isPending) return <Spinner />
   if (patient.error) return <ErrorMessage error={patient.error} />
@@ -73,6 +76,7 @@ export function PatientDetailPage() {
               <InfoRow label="Adresse" value={p.address} />
               <InfoRow label="Médecin traitant" value={p.referring_doctor} />
               <InfoRow label="Notes" value={p.admin_notes} />
+              <InfoRow label="Relances" value={p.consent_email ? `Accord e-mail${p.consent_at ? ` (${formatDate(p.consent_at)})` : ''}` : 'Pas d’accord e-mail'} />
             </dl>
           </Card>
 
@@ -120,6 +124,12 @@ export function PatientDetailPage() {
             </Card>
           ) : (
             <Card className="p-5 text-sm text-stone-500">Les consultations sont réservées aux praticiens.</Card>
+          )}
+          {(invoices.data?.length ?? 0) > 0 && (
+            <Card className="overflow-hidden">
+              <CardHeader title="Factures" />
+              <InvoiceTable invoices={invoices.data!} showPatient={false} />
+            </Card>
           )}
         </div>
       </div>

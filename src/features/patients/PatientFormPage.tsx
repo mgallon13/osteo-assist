@@ -18,7 +18,7 @@ export function PatientFormPage() {
 
   const { register, handleSubmit, reset, formState } = useForm<PatientFormValues>({
     resolver: zodResolver(patientSchema),
-    defaultValues: { is_synthetic: true },
+    defaultValues: { is_synthetic: true, consent_email: false, consent_sms: false },
   })
 
   useEffect(() => {
@@ -36,6 +36,8 @@ export function PatientFormPage() {
       admin_notes: p.admin_notes ?? '',
       medical_history: clinical.data?.medical_history ?? '',
       recurring_complaints: clinical.data?.recurring_complaints ?? '',
+      consent_email: p.consent_email,
+      consent_sms: p.consent_sms,
       is_synthetic: true,
     })
   }, [isEdit, patient.data, clinical.data, reset])
@@ -44,7 +46,7 @@ export function PatientFormPage() {
   if (isEdit && patient.error) return <ErrorMessage error={patient.error} />
 
   const onSubmit = handleSubmit(async (values) => {
-    const saved = await save.mutateAsync({ id: patientId, values })
+    const saved = await save.mutateAsync({ id: patientId, values, previous: patient.data ?? undefined })
     navigate(`/patients/${saved.id}`)
   })
 
@@ -88,6 +90,14 @@ export function PatientFormPage() {
                 <Textarea id="admin_notes" {...register('admin_notes')} />
               </Field>
             </div>
+          </div>
+        </Card>
+
+        <Card>
+          <CardHeader title="Accord pour être recontacté" description="Nécessaire pour les relances (suivi, entretien). Les factures restent envoyées." />
+          <div className="space-y-2 p-5 text-sm text-stone-700">
+            <label className="flex items-center gap-2"><input type="checkbox" {...register('consent_email')} /> Le patient accepte d’être recontacté par e-mail</label>
+            <label className="flex items-center gap-2"><input type="checkbox" {...register('consent_sms')} /> Le patient accepte d’être recontacté par SMS</label>
           </div>
         </Card>
 

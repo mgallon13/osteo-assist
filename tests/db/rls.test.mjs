@@ -254,5 +254,82 @@ await test('Une analyse ne peut être enregistrée que par l\'auteur de la consu
     [orgA, consult2, prB])), /row-level security/, 'analyse cross-tenant')
 })
 
+console.log('\nTests facturation et relances')
+
+const prA = await as(USER_A, async (tx) => (await tx.query(`select app.current_practitioner_id($1) as id`, [orgA])).rows[0].id)
+const newDraft = (tx, amount = 6000) => tx.query(
+  `insert into invoices (organization_id, patient_id, practitioner_id, amount_cents) values ($1, $2, $3, $4) returning id`,
+  [orgA, patientA, prA, amount]).then((r) => r.rows[0].id)
+
+await test('La numérotation est continue et attribuée à l\'émission', () => as(USER_A, async (tx) => {
+  const a = await newDraft(tx)
+  const b = await newDraft(tx)
+  const year = new Date().getFullYear()
+  const na = (await tx.query(`select (public.issue_invoice($1)).number`, [a])).rows[0].number
+  const nb = (await tx.query(`select (public.issue_invoice($1)).number`, [b])).rows[0].number
+  assert.equal(na, `${year}-0001`)
+  assert.equal(nb, `${year}-0002`)
+  const snap = (await tx.query(`select snapshot from invoices where id = $1`, [a])).rows[0].snapshot
+  assert.equal(snap.patient.last_name, 'Fictive')
+  assert.equal(snap.organization.vat_mention, 'TVA non applicable, article 261-4-1° du CGI')
+}))
+
+await test('Une facture émise ne peut être ni modifiée ni supprimée', async () => {
+  const id = await as(USER_A, async (tx) => {
+    const i = await newDraft(tx)
+    await tx.query(`select public.issue_invoice($1)`, [i])
+    return i
+  })
+  await expectError(as(USER_A, (tx) => tx.query(`update invoices set amount_cents = 1 where id = $1`, [id])), /avoir/, 'modif montant')
+  // Suppression : filtrée par la RLS (brouillons seulement) — la facture reste en place
+  await as(USER_A, (tx) => tx.query(`delete from invoices where id = $1`, [id]))
+  await as(USER_A, async (tx) => assert.equal((await tx.query(`select 1 from invoices where id = $1`, [id])).rows.length, 1))
+  await expectError(as(USER_A, (tx) => tx.query(`update invoices set number = '9999' where id = $1`, [id])), /avoir/, 'modif numéro')
+  await as(USER_A, (tx) => tx.query(`update invoices set status = 'paid', paid_at = now(), payment_method = 'card' where id = $1`, [id]))
+})
+
+await test('On ne peut pas émettre en contournant la fonction dédiée', () =>
+  expectError(as(USER_A, async (tx) => {
+    const i = await newDraft(tx)
+    await tx.query(`update invoices set status = 'issued', number = 'X-1', issue_date = current_date where id = $1`, [i])
+  }), /issue_invoice/, 'émission directe'))
+
+await test('L\'annulation crée un avoir numéroté du montant opposé', () => as(USER_A, async (tx) => {
+  const i = await newDraft(tx, 5500)
+  await tx.query(`select public.issue_invoice($1)`, [i])
+  const credit = (await tx.query(`select * from public.cancel_invoice($1)`, [i])).rows[0]
+  assert.equal(credit.kind, 'credit_note')
+  assert.equal(credit.amount_cents, -5500)
+  assert.match(credit.number, /^\d{4}-\d{4}$/)
+  assert.equal((await tx.query(`select status from invoices where id = $1`, [i])).rows[0].status, 'cancelled')
+}))
+
+await test('La secrétaire peut facturer ; un autre cabinet ne voit rien', async () => {
+  await as(STAFF_A, async (tx) => {
+    const i = (await tx.query(
+      `insert into invoices (organization_id, patient_id, practitioner_id, amount_cents) values ($1, $2, $3, 6000) returning id`,
+      [orgA, patientA, prA])).rows[0].id
+    await tx.query(`select public.issue_invoice($1)`, [i])
+  })
+  await as(USER_B, async (tx) => assert.equal((await tx.query(`select * from invoices`)).rows.length, 0))
+  await expectError(as(USER_B, (tx) => tx.query(`select * from invoice_counters`)), /permission denied|row-level/, 'compteurs')
+})
+
+await test('La validation programme les relances de suivi et d\'entretien', () => as(USER_A, async (tx) => {
+  const c = (await tx.query(
+    `insert into consultations (organization_id, patient_id, practitioner_id, suggested_follow_up_date)
+     values ($1, $2, $3, current_date + 21) returning id`, [orgA, patientA, prA])).rows[0].id
+  await tx.query(`select public.validate_consultation($1)`, [c])
+  const kinds = (await tx.query(`select kind, due_date - current_date as days from patient_reminders where consultation_id = $1 order by kind`, [c])).rows
+  assert.deepEqual(kinds.map((k) => [k.kind, k.days]), [['follow_up', 21], ['maintenance', 150]])
+
+  // Nouvelle séance validée : l'ancienne relance d'entretien est annulée
+  const c2 = (await tx.query(
+    `insert into consultations (organization_id, patient_id, practitioner_id) values ($1, $2, $3) returning id`,
+    [orgA, patientA, prA])).rows[0].id
+  await tx.query(`select public.validate_consultation($1)`, [c2])
+  assert.equal((await tx.query(`select status from patient_reminders where consultation_id = $1 and kind = 'maintenance'`, [c])).rows[0].status, 'cancelled')
+}))
+
 console.log(`\n${passed} tests réussis`)
 await db.close()
