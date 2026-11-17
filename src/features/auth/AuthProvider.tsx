@@ -6,6 +6,7 @@ import type { Membership, Practitioner } from '@/types/database'
 
 interface AuthContextValue {
   recovering: boolean
+  invited: boolean
   endRecovery: () => void
   session: Session | null
   sessionLoading: boolean
@@ -21,10 +22,11 @@ const AuthContext = createContext<AuthContextValue | null>(null)
 export function AuthProvider({ children }: { children: ReactNode }) {
   const [session, setSession] = useState<Session | null>(null)
   const [sessionLoading, setSessionLoading] = useState(true)
-  // Arrivée par un lien « mot de passe oublié » : afficher l'écran de nouveau mot de passe
+  // Arrivée par un lien « mot de passe oublié » ou une invitation : choisir un mot de passe
   const [recovering, setRecovering] = useState(
-    () => typeof window !== 'undefined' && window.location.hash.includes('type=recovery'),
+    () => typeof window !== 'undefined' && /type=(recovery|invite)/.test(window.location.hash),
   )
+  const [invited] = useState(() => typeof window !== 'undefined' && window.location.hash.includes('type=invite'))
 
   useEffect(() => {
     supabase.auth.getSession().then(({ data }) => {
@@ -69,6 +71,7 @@ export function AuthProvider({ children }: { children: ReactNode }) {
 
   const value: AuthContextValue = {
     recovering,
+    invited,
     endRecovery: () => setRecovering(false),
     session,
     sessionLoading,

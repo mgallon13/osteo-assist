@@ -14,7 +14,7 @@ type FormValues = z.infer<typeof schema>
 
 /** Écran affiché après un clic sur le lien « mot de passe oublié » reçu par e-mail. */
 export function ResetPasswordPage() {
-  const { endRecovery } = useAuth()
+  const { endRecovery, invited } = useAuth()
   const [error, setError] = useState<unknown>(null)
   const { register, handleSubmit, formState } = useForm<FormValues>({ resolver: zodResolver(schema) })
 
@@ -29,8 +29,10 @@ export function ResetPasswordPage() {
   return (
     <div className="flex min-h-full items-center justify-center px-4 py-12">
       <div className="w-full max-w-sm">
-        <h1 className="mb-1 text-xl font-semibold tracking-tight">Nouveau mot de passe</h1>
-        <p className="mb-6 text-sm text-stone-500">Choisissez le mot de passe que vous utiliserez désormais.</p>
+        <h1 className="mb-1 text-xl font-semibold tracking-tight">{invited ? 'Bienvenue sur OstéoAssist' : 'Nouveau mot de passe'}</h1>
+        <p className="mb-6 text-sm text-stone-500">
+          {invited ? 'Choisissez votre mot de passe pour accéder à l’application.' : 'Choisissez le mot de passe que vous utiliserez désormais.'}
+        </p>
         <Card className="p-6">
           <form onSubmit={onSubmit} className="space-y-4" noValidate>
             <Field label="Nouveau mot de passe" htmlFor="password" error={formState.errors.password?.message}>
