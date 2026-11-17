@@ -17,6 +17,7 @@ export interface Organization {
   maintenance_days: number
   reminders_enabled: boolean
   message_signature: string | null
+  invoice_title: string
 }
 
 export interface Membership {
@@ -32,6 +33,11 @@ export interface Practitioner {
   first_name: string
   last_name: string
   adeli_number: string | null
+  rpps_number: string | null
+  professional_title: string
+  diploma: string | null
+  phone: string | null
+  contact_email: string | null
   doctolib_url: string | null
 }
 

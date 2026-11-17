@@ -22,20 +22,30 @@ export function SettingsPage() {
     reminders_enabled: organization.reminders_enabled,
     maintenance_days: String(organization.maintenance_days),
     message_signature: organization.message_signature ?? '',
+    invoice_title: organization.invoice_title,
   })
   const [pr, setPr] = useState({
     first_name: practitioner?.first_name ?? '',
     last_name: practitioner?.last_name ?? '',
     adeli_number: practitioner?.adeli_number ?? '',
+    rpps_number: practitioner?.rpps_number ?? '',
+    professional_title: practitioner?.professional_title ?? 'Ostéopathe D.O.',
+    diploma: practitioner?.diploma ?? '',
+    phone: practitioner?.phone ?? '',
+    contact_email: practitioner?.contact_email ?? '',
     doctolib_url: practitioner?.doctolib_url ?? '',
   })
 
   const save = useMutation({
     mutationFn: async () => {
       if (practitioner) {
+        const rpps = pr.rpps_number.replace(/\s/g, '')
+        if (rpps && !/^\d{11}$/.test(rpps)) throw new Error('Le numéro RPPS comporte 11 chiffres.')
         const { error } = await supabase.from('practitioners').update({
           first_name: pr.first_name.trim(), last_name: pr.last_name.trim(),
           adeli_number: nullable(pr.adeli_number), doctolib_url: nullable(pr.doctolib_url),
+          rpps_number: rpps || null, professional_title: pr.professional_title.trim() || 'Ostéopathe D.O.',
+          diploma: nullable(pr.diploma), phone: nullable(pr.phone), contact_email: nullable(pr.contact_email),
         }).eq('id', practitioner.id)
         if (error) throw error
       }
@@ -50,6 +60,7 @@ export function SettingsPage() {
           name: org.name.trim(), legal_name: nullable(org.legal_name), siret: siret || null, address: nullable(org.address),
           default_fee_cents: fee, vat_mention: org.vat_mention.trim(), invoice_footer: nullable(org.invoice_footer),
           reminders_enabled: org.reminders_enabled, maintenance_days: days, message_signature: nullable(org.message_signature),
+          invoice_title: org.invoice_title.trim() || "Note d'honoraires",
         }).eq('id', organizationId)
         if (error) throw error
       }
@@ -69,7 +80,12 @@ export function SettingsPage() {
           <div className="grid gap-4 p-5 sm:grid-cols-2">
             <Field label="Prénom" htmlFor="pfn"><Input id="pfn" value={pr.first_name} onChange={setP('first_name')} required /></Field>
             <Field label="Nom" htmlFor="pln"><Input id="pln" value={pr.last_name} onChange={setP('last_name')} required /></Field>
-            <Field label="N° ADELI" htmlFor="adeli" hint="Obligatoire sur les factures."><Input id="adeli" value={pr.adeli_number} onChange={setP('adeli_number')} /></Field>
+            <Field label="Titre" htmlFor="ptitle"><Input id="ptitle" value={pr.professional_title} onChange={setP('professional_title')} /></Field>
+            <Field label="Diplôme" htmlFor="dipl" hint="Ex. Diplômé du Collège Ostéopathique de Provence"><Input id="dipl" value={pr.diploma} onChange={setP('diploma')} /></Field>
+            <Field label="N° RPPS" htmlFor="rpps" hint="11 chiffres, figure sur vos notes d’honoraires."><Input id="rpps" inputMode="numeric" value={pr.rpps_number} onChange={setP('rpps_number')} /></Field>
+            <Field label="N° ADELI (ancien)" htmlFor="adeli" hint="Facultatif si vous avez un RPPS."><Input id="adeli" value={pr.adeli_number} onChange={setP('adeli_number')} /></Field>
+            <Field label="Téléphone professionnel" htmlFor="phone"><Input id="phone" type="tel" value={pr.phone} onChange={setP('phone')} /></Field>
+            <Field label="E-mail professionnel" htmlFor="pmail"><Input id="pmail" type="email" value={pr.contact_email} onChange={setP('contact_email')} /></Field>
             <Field label="Lien de prise de rendez-vous" htmlFor="doctolib" hint="Ajouté aux messages de relance (ex. Doctolib).">
               <Input id="doctolib" type="url" placeholder="https://" value={pr.doctolib_url} onChange={setP('doctolib_url')} />
             </Field>
@@ -94,6 +110,7 @@ export function SettingsPage() {
             <CardHeader title="Facturation" />
             <div className="grid gap-4 p-5 sm:grid-cols-2">
               <Field label="Tarif par défaut (€)" htmlFor="fee"><Input id="fee" inputMode="decimal" value={org.fee} onChange={setO('fee')} placeholder="60" /></Field>
+              <Field label="Intitulé du document" htmlFor="ititle"><Input id="ititle" value={org.invoice_title} onChange={setO('invoice_title')} required /></Field>
               <Field label="Mention de TVA" htmlFor="vat"><Input id="vat" value={org.vat_mention} onChange={setO('vat_mention')} required /></Field>
               <div className="sm:col-span-2">
                 <Field label="Mentions en bas de facture" htmlFor="footer" hint="Facultatif : association agréée, conditions de règlement…">

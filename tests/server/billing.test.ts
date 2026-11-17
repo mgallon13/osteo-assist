@@ -44,7 +44,7 @@ describe('PDF de facture', () => {
     const bytes = await renderInvoicePdf(invoice() as unknown as InvoiceForPdf)
     const doc = await PDFDocument.load(bytes)
     expect(doc.getPageCount()).toBe(1)
-    expect(doc.getTitle()).toBe('Facture 2026-0007')
+    expect(doc.getTitle()).toBe("Note d'honoraires 2026-0007")
     expect(Buffer.from(bytes.slice(0, 5)).toString()).toBe('%PDF-')
   })
 
