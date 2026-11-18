@@ -12,9 +12,7 @@ const schema = z.object({
 type FormValues = z.infer<typeof schema>
 
 export function LoginPage() {
-  const [mode, setMode] = useState<'signin' | 'signup'>('signin')
   const [error, setError] = useState<unknown>(null)
-  const [info, setInfo] = useState<string | null>(null)
   const { register, handleSubmit, formState, getValues } = useForm<FormValues>({ resolver: zodResolver(schema) })
 
   const [resetSent, setResetSent] = useState(false)
@@ -29,13 +27,8 @@ export function LoginPage() {
 
   const onSubmit = handleSubmit(async ({ email, password }) => {
     setError(null)
-    setInfo(null)
-    const { error: err } =
-      mode === 'signin'
-        ? await supabase.auth.signInWithPassword({ email, password })
-        : await supabase.auth.signUp({ email, password })
+    const { error: err } = await supabase.auth.signInWithPassword({ email, password })
     if (err) setError(err)
-    else if (mode === 'signup') setInfo('Compte créé. Vérifiez votre boîte mail pour confirmer votre adresse.')
   })
 
   return (
@@ -47,7 +40,7 @@ export function LoginPage() {
           </div>
           <h1 className="text-xl font-semibold tracking-tight">OstéoAssist</h1>
           <p className="mt-1 text-sm text-stone-500">
-            {mode === 'signin' ? 'Connectez-vous à votre cabinet' : 'Créez votre compte praticien'}
+            Connectez-vous à votre cabinet
           </p>
         </div>
 
@@ -60,37 +53,27 @@ export function LoginPage() {
               <Input
                 id="password"
                 type="password"
-                autoComplete={mode === 'signin' ? 'current-password' : 'new-password'}
+                autoComplete="current-password"
                 {...register('password')}
               />
             </Field>
             {error != null && <ErrorMessage error={error} />}
-            {info && <p className="rounded-md bg-accent-50 px-3 py-2 text-sm text-accent-700">{info}</p>}
             {resetSent && (
               <p className="rounded-md bg-accent-50 px-3 py-2 text-sm text-accent-700">
-                Si un compte existe pour cette adresse, un lien de réinitialisation vient d’être envoyé. Pensez à vérifier les spams.
+                Si cette adresse a été invitée, un lien pour choisir votre mot de passe vient d’être envoyé. Pensez à vérifier les spams.
               </p>
             )}
             <Button type="submit" className="w-full" loading={formState.isSubmitting}>
-              {mode === 'signin' ? 'Se connecter' : 'Créer le compte'}
+              Se connecter
             </Button>
-            {mode === 'signin' && (
-              <button type="button" onClick={forgot} className="w-full text-center text-sm text-stone-500 hover:text-stone-900 hover:underline">
-                Mot de passe oublié ?
-              </button>
-            )}
+            <button type="button" onClick={forgot} className="w-full text-center text-sm text-stone-500 hover:text-stone-900 hover:underline">
+              Première connexion ou mot de passe oublié ?
+            </button>
           </form>
         </Card>
 
         <p className="mt-4 text-center text-sm text-stone-500">
-          {mode === 'signin' ? 'Pas encore de compte ?' : 'Déjà inscrit ?'}{' '}
-          <button
-            type="button"
-            className="font-medium text-accent-700 hover:underline"
-            onClick={() => setMode(mode === 'signin' ? 'signup' : 'signin')}
-          >
-            {mode === 'signin' ? 'Créer un compte' : 'Se connecter'}
-          </button>
+          L’accès se fait sur invitation. Invité ? Saisissez votre e-mail puis « Première connexion ».
         </p>
       </div>
     </div>
